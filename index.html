@@ -1,0 +1,179 @@
+﻿<table border id=pianos cellpadding=5 style=table-layout:fixed>
+</table>
+
+<br>
+<button id=play>PLAY</button> 
+<button onclick=addPiano()>ADD 1 INSTRUMENT</button>
+<button onclick=save()>SAVE</button> 
+<button onclick=load()>LOAD</button> 
+<button onclick="location=location">RESET</button>
+<br>
+<br>
+<textarea id=code rows=10 cols=60></textarea>
+
+<script>
+
+nbpianos = 0;
+data = [];
+
+addPiano = function(){
+
+  data[nbpianos] = [];
+  var pianoHTML = "";
+  for(i = 0; i <= 24; i++){
+    pianoHTML += "<tr>";
+    for(j = 0; j < 100; j++){
+      pianoHTML += `<td class="note piano${nbpianos} x${j-1} y${i-1} ${i==12?'grey':(j==0&&[1,3,6,8,11,13,15,18,20,23].indexOf(i)>-1)?'black':''}" data-piano=${nbpianos} data-x=${j-1} data-y=${i-1}> </td>`;
+    }
+  }
+  
+  pianos.insertAdjacentHTML("beforeEnd",
+  
+  `
+  <tr>
+    <td style="min-width:150px">
+      Center line: <input size=2 id=octave${nbpianos} value=400>Hz
+      <br>
+      Note length: <input size=2 id=length${nbpianos} value=100>ms
+      <br>
+      Decays after <input size=2 id=decay${nbpianos} value=95>ms
+      <br>
+      Note interval: <input size=2 id=interval${nbpianos} value=100>ms
+      <br>
+      Volume: <input size=2 id=volume${nbpianos} value=.1>
+      <br>
+      <input type=radio name=wave${nbpianos} value=sine checked id=sine${nbpianos}> sine
+      <br>
+      <input type=radio name=wave${nbpianos} value=square id=square${nbpianos}> square
+      <br>
+      <input type=radio name=wave${nbpianos} value=sawtooth id=sawtooth${nbpianos}> sawtooth
+      <br>
+      <input type=radio name=wave${nbpianos} value=triangle id=triangle${nbpianos}> triangle
+    </td>
+    <td bgcolor=#aaa>
+      <table bgcolor=#fff id=piano${nbpianos} border cellspacing=0>${pianoHTML}</table>
+    </td>
+  </tr>
+  `
+  
+  );
+  
+  nbpianos++;
+  
+}
+
+addPiano();
+addPiano();
+
+save = () => {
+  var save = [];
+  for(i = 0; i < nbpianos; i++){
+    save[i]={
+      octave: window['octave'+i].value,
+      len: window['length'+i].value,
+      decay: window['decay'+i].value,
+      interval: window['interval'+i].value,
+      volume: window['volume'+i].value,
+      wave: window['sine'+i].checked ? "sine":
+            window['square'+i].checked ? "square":
+            window['sawtooth'+i].checked ? "sawtooth":
+            window['triangle'+i].checked ? "triangle":"",
+      data: data[i]
+    }
+  }
+  
+  prompt("",JSON.stringify(save));
+}
+
+
+load = () => {
+  var save = JSON.parse(prompt());
+  
+  pianos.innerHTML = "";
+  nbpianos = 0;
+  
+  // Clear
+  data = [];
+  for(k = 0; k < save.length; k++){
+    addPiano();
+  }
+  
+  // Fill
+  for(i = 0; i < nbpianos; i++){
+    window['octave'+i].value = save[i].octave;
+    window['length'+i].value = save[i].len;
+    window['decay'+i].value = save[i].decay;
+    window['interval'+i].value = save[i].interval;
+    window['volume'+i].value = save[i].volume;
+    if(save[i].wave == "sine") window['sine'+i].checked = "checked";
+    else if(save[i].wave == "square") window['square'+i].checked = "checked";
+    if(save[i].wave == "sawtooth") window['sawtooth'+i].checked = "checked";
+    else if(save[i].wave == "triangle") window['triangle'+i].checked = "checked";
+    data[i] = save[i].data;
+    
+    for(k in data[i]){
+    
+      // Color the notes
+      document.querySelector(".piano"+i+".x"+data[i][k][0]+".y"+data[i][k][1]).classList.add("blue");
+    
+    }
+  }
+  
+}
+
+play = () => {
+  for(i = 0; i < nbpianos;i++){
+    
+  }
+}
+
+onclick = (e) => {
+
+  var cell = e.target;
+  if(cell.dataset.piano && +(cell.dataset.x) >= 0){
+    
+    // Add note
+    if(!cell.classList.contains("blue")){
+      e.target.classList.add("blue");
+      data[+cell.dataset.piano].push([cell.dataset.x,cell.dataset.y])
+    }
+    
+    // Remove note
+    else {
+      e.target.classList.remove("blue");
+      // TODO remove note from data
+    }
+  }
+}
+
+mousedown = 0;
+onmousedown = e => {
+  mousedown = 1;
+}
+onmouseup = e => {
+  mousedown = 0;
+}
+onmousemove = (e) => {
+
+  if(mousedown){
+    var cell = e.target;
+    if(cell.dataset.piano && +(cell.dataset.x) >= 0){
+      
+      // Add note
+      if(!cell.classList.contains("blue")){
+        e.target.classList.add("blue");
+        data[+cell.dataset.piano].push([cell.dataset.x,cell.dataset.y])
+      }
+    }
+  }
+}
+
+</script>
+
+<style>
+*{user-select: none; -moz-user-select: none;}
+.note { min-width: 10px; min-height: 10px; font-size: 8px; }
+.grey { background: #ddd }
+.black { background: #000 }
+.blue { background: #00f }
+</style>
