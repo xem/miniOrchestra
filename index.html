@@ -2,19 +2,20 @@
 </table>
 
 <br>
-<button id=play>PLAY</button> 
+<button onclick=play()>PLAY</button> 
 <button onclick=addPiano()>ADD 1 INSTRUMENT</button>
 <button onclick=save()>SAVE</button> 
 <button onclick=load()>LOAD</button> 
 <button onclick="location=location">RESET</button>
 <br>
 <br>
-<textarea id=code rows=10 cols=60></textarea>
+<textarea id=code rows=15 cols=90></textarea>
 
 <script>
 
 nbpianos = 0;
 data = [];
+code.value = "";
 
 addPiano = function(){
 
@@ -23,7 +24,7 @@ addPiano = function(){
   for(i = 0; i <= 24; i++){
     pianoHTML += "<tr>";
     for(j = 0; j < 100; j++){
-      pianoHTML += `<td class="note piano${nbpianos} x${j-1} y${i-1} ${i==12?'grey':(j==0&&[1,3,6,8,11,13,15,18,20,23].indexOf(i)>-1)?'black':''}" data-piano=${nbpianos} data-x=${j-1} data-y=${i-1}> </td>`;
+      pianoHTML += `<td class="note piano${nbpianos} x${j-1} y${i-1} ${i==12?'grey':(j==0&&[1,3,6,8,11,13,15,18,20,23].indexOf(i)>-1)?'black':''}" data-piano=${nbpianos} data-x=${j-1} data-y=${i}> </td>`;
     }
   }
   
@@ -31,14 +32,16 @@ addPiano = function(){
   
   `
   <tr>
-    <td style="min-width:150px">
-      Center line: <input size=2 id=octave${nbpianos} value=400>Hz
+    <td style="min-width:160px">
+      Center line: <input size=2 id=octave${nbpianos} value=400> Hz
       <br>
-      Note length: <input size=2 id=length${nbpianos} value=100>ms
+      Note duration: <input size=2 id=duration${nbpianos} value=.19> s
       <br>
-      Decays after <input size=2 id=decay${nbpianos} value=95>ms
+      Decay start <input size=2 id=decaystart${nbpianos} value=.18> s
       <br>
-      Note interval: <input size=2 id=interval${nbpianos} value=100>ms
+      Decay duration <input size=2 id=decayduration${nbpianos} value=.005> s
+      <br>
+      Note interval: <input size=2 id=interval${nbpianos} value=.2> s
       <br>
       Volume: <input size=2 id=volume${nbpianos} value=.1>
       <br>
@@ -63,15 +66,15 @@ addPiano = function(){
 }
 
 addPiano();
-addPiano();
 
 save = () => {
   var save = [];
   for(i = 0; i < nbpianos; i++){
     save[i]={
       octave: window['octave'+i].value,
-      len: window['length'+i].value,
-      decay: window['decay'+i].value,
+      duration: window['duration'+i].value,
+      decaystart: window['decaystart'+i].value,
+      decayduration: window['decayduration'+i].value,
       interval: window['interval'+i].value,
       volume: window['volume'+i].value,
       wave: window['sine'+i].checked ? "sine":
@@ -82,7 +85,7 @@ save = () => {
     }
   }
   
-  prompt("",JSON.stringify(save));
+  prompt("Save the following code:",JSON.stringify(save));
 }
 
 
@@ -101,8 +104,9 @@ load = () => {
   // Fill
   for(i = 0; i < nbpianos; i++){
     window['octave'+i].value = save[i].octave;
-    window['length'+i].value = save[i].len;
-    window['decay'+i].value = save[i].decay;
+    window['duration'+i].value = save[i].duration;
+    window['decaystart'+i].value = save[i].decaystart;
+    window['decayduration'+i].value = save[i].decayduration;
     window['interval'+i].value = save[i].interval;
     window['volume'+i].value = save[i].volume;
     if(save[i].wave == "sine") window['sine'+i].checked = "checked";
@@ -122,9 +126,31 @@ load = () => {
 }
 
 play = () => {
-  for(i = 0; i < nbpianos;i++){
-    
+
+  code.value = `A=(notes,center,duration,decaystart,decayduration,interval,volume,waveform,i)=>{
+  with(new AudioContext)
+    with(G=createGain())
+      for(i of notes)
+        with(createOscillator())
+          connect(G),
+          G.connect(destination),
+          start(i[0]*interval),
+          frequency.setValueAtTime(center*1.06**(13-i[1]),i[0]*interval),
+          type=waveform,
+          gain.setValueAtTime(volume,i[0]*interval),
+          gain.setTargetAtTime(1e-5,i[0]*interval+decaystart,decayduration),
+          stop(i[0]*interval+duration)
+}`;
+
+
+  for(i = 0; i < nbpianos; i++){
+    if(data[i].length){
+    code.value+=`
+A(${JSON.stringify(data[i])},${window['octave'+i].value},${window['duration'+i].value},${window['decaystart'+i].value},${window['decayduration'+i].value},${window['interval'+i].value},${window['volume'+i].value},'${window['square'+i].checked ? "square":window['sawtooth'+i].checked ? "sawtooth":window['triangle'+i].checked ? "triangle":""}');`;
+    }
   }
+  
+  eval(code.value)
 }
 
 onclick = (e) => {
@@ -135,13 +161,17 @@ onclick = (e) => {
     // Add note
     if(!cell.classList.contains("blue")){
       e.target.classList.add("blue");
-      data[+cell.dataset.piano].push([cell.dataset.x,cell.dataset.y])
+      data[+cell.dataset.piano].push([+cell.dataset.x, +cell.dataset.y])
     }
     
     // Remove note
     else {
       e.target.classList.remove("blue");
-      // TODO remove note from data
+      for(var i in data[+cell.dataset.piano]){
+        if(data[+cell.dataset.piano][i][0]==+cell.dataset.x && data[+cell.dataset.piano][i][1]==+cell.dataset.y){
+          data[+cell.dataset.piano].splice(i,1);
+        }
+      }
     }
   }
 }
@@ -162,7 +192,7 @@ onmousemove = (e) => {
       // Add note
       if(!cell.classList.contains("blue")){
         e.target.classList.add("blue");
-        data[+cell.dataset.piano].push([cell.dataset.x,cell.dataset.y])
+        data[+cell.dataset.piano].push([+cell.dataset.x, +cell.dataset.y])
       }
     }
   }
@@ -171,7 +201,7 @@ onmousemove = (e) => {
 </script>
 
 <style>
-*{user-select: none; -moz-user-select: none;}
+table, td {user-select: none; -moz-user-select: none;}
 .note { min-width: 10px; min-height: 10px; font-size: 8px; }
 .grey { background: #ddd }
 .black { background: #000 }
