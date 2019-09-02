@@ -2,7 +2,8 @@
 </table>
 
 <br>
-<button onclick=play()>PLAY</button> 
+<button onclick=play()>PLAY</button>
+<button onclick=stop()>STOP</button>
 <button onclick=addPiano()>ADD 1 INSTRUMENT</button>
 <button onclick=save()>SAVE</button> 
 <button onclick=load()>LOAD</button> 
@@ -23,7 +24,7 @@ addPiano = function(){
   var pianoHTML = "";
   for(i = 0; i <= 24; i++){
     pianoHTML += "<tr>";
-    for(j = 0; j < 100; j++){
+    for(j = 0; j < 300; j++){
       pianoHTML += `<td class="note piano${nbpianos} x${j-1} y${i-1} ${i==12?'grey':(j==0&&[1,3,6,8,11,13,15,18,20,23].indexOf(i)>-1)?'black':''}" data-piano=${nbpianos} data-x=${j-1} data-y=${i}> </td>`;
     }
   }
@@ -118,7 +119,7 @@ load = () => {
     for(k in data[i]){
     
       // Color the notes
-      document.querySelector(".piano"+i+".x"+data[i][k][0]+".y"+data[i][k][1]).classList.add("blue");
+      document.querySelector(".piano"+i+".x"+data[i][k][0]+".y"+(data[i][k][1]-1)).classList.add("blue");
     
     }
   }
@@ -127,11 +128,11 @@ load = () => {
 
 play = () => {
 
-  code.value = `A=(notes,center,duration,decaystart,decayduration,interval,volume,waveform,i)=>{
-  with(new AudioContext)
+  code.value = `a=(notes,center,duration,decaystart,decayduration,interval,volume,waveform,i)=>{
+  with(A=new AudioContext)
     with(G=createGain())
-      for(i of notes)
-        with(createOscillator())
+      for(i of notes){
+        with(O=createOscillator()){
           connect(G),
           G.connect(destination),
           start(i[0]*interval),
@@ -139,14 +140,20 @@ play = () => {
           type=waveform,
           gain.setValueAtTime(volume,i[0]*interval),
           gain.setTargetAtTime(1e-5,i[0]*interval+decaystart,decayduration),
-          stop(i[0]*interval+duration)
+          stop(i[0]*interval+duration);
+        }
+     }
 }`;
+
+stop = () => {
+  A.close();
+}
 
 
   for(i = 0; i < nbpianos; i++){
     if(data[i].length){
     code.value+=`
-A(${JSON.stringify(data[i])},${window['octave'+i].value},${window['duration'+i].value},${window['decaystart'+i].value},${window['decayduration'+i].value},${window['interval'+i].value},${window['volume'+i].value},'${window['square'+i].checked ? "square":window['sawtooth'+i].checked ? "sawtooth":window['triangle'+i].checked ? "triangle":""}');`;
+a(${JSON.stringify(data[i])},${window['octave'+i].value},${window['duration'+i].value},${window['decaystart'+i].value},${window['decayduration'+i].value},${window['interval'+i].value},${window['volume'+i].value},'${window['square'+i].checked ? "square":window['sawtooth'+i].checked ? "sawtooth":window['triangle'+i].checked ? "triangle":""}');`;
     }
   }
   
